@@ -10,3 +10,53 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./nginx/ssl:/etc/nginx/ssl
       - ./html:/usr/share/nginx/html:rw
+    networks:
+      - app_network
+
+  app:
+    build: ./api
+    command: bash -c "alembic upgrade head && sanic app:app --host=0.0.0.0 --fast"
+    ports:
+      - "8000:8000"
+    networks:
+      - app_network
+
+  celery-worker:
+    build: ./api
+    command: bash -c "celery -A app.celery worker --loglevel=info"
+    networks:
+      - app_network
+
+  celery-beat:
+    build: ./api
+    command: bash -c "celery -A app.celery beat --loglevel=info"
+    networks:
+      - app_network
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+  redis:
+    image: redis:latest
+    container_name: redis_db
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
